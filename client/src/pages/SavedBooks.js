@@ -42,7 +42,7 @@ const SavedBooks = () => {
   if (loading) {
     return <h2>LOADING...</h2>;
   }
-
+ console.log(userData);
   // sync localStorage with what was returned from the userData query
   const savedBookIds = userData.savedBooks.map((book) => book.bookId);
   saveBookIds(savedBookIds);
