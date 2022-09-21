@@ -17,6 +17,8 @@ const SavedBooks = () => {
   const { loading, data } = useQuery(GET_ME);
   const userData = data?.me || [];
 
+  console.log(userData);
+
   const [removeBook, { error }] = useMutation(REMOVE_BOOK);
 
   const handleDeleteBook = async (bookId) => {
@@ -42,7 +44,7 @@ const SavedBooks = () => {
   if (loading) {
     return <h2>LOADING...</h2>;
   }
- console.log(userData);
+  console.log(userData);
   // sync localStorage with what was returned from the userData query
   const savedBookIds = userData.savedBooks.map((book) => book.bookId);
   saveBookIds(savedBookIds);
