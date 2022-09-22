@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Jumbotron,
   Container,
@@ -6,52 +6,45 @@ import {
   Card,
   Button,
 } from "react-bootstrap";
-import Auth from "../utils/auth";
-import { removeBookId } from "../utils/localStorage";
+import { useQuery, useMutation } from "@apollo/client";
 
-// Imports useMutation and useQuery from @apollo-client so that the imported REMOVE_BOOK mutation and the GET_ME query can be called
-import { useMutation, useQuery } from "@apollo/client";
-import { REMOVE_BOOK } from "../utils/mutations";
+import Auth from "../utils/auth";
+import { removeBookId, saveBookIds } from "../utils/localStorage";
 import { GET_ME } from "../utils/queries";
+import { REMOVE_BOOK } from "../utils/mutations";
 
 const SavedBooks = () => {
-  // Brings in the GET_ME userQuery hook with the data, the loading boolean, the refetch ability, and an error code if needed
-  const { loading, error, data, refetch } = useQuery(GET_ME);
+  const { loading, data } = useQuery(GET_ME);
 
-  // useEffect hook to refetch the user's saved book data every time the data changes
+  const [myBooks, setMyBooks] = useState([]);
+
   useEffect(() => {
-    refetch();
-  }, [refetch, data]);
+    console.log(loading);
+    if (!loading) {
+      console.log(data.me);
+      setMyBooks([...data.me.savedBooks]);
+    }
+  }, [loading, data])
 
-  // Sets the userData variable to the data retrieved from the GET_ME query
-  const userData = data?.me;
+  const [removeBook, { error }] = useMutation(REMOVE_BOOK);
 
-  if (error) {
-    console.log(error.message);
-  }
-
-  // Applies the REMOVE_BOOK mutation to the function removeBook to be called
-  const [removeBook] = useMutation(REMOVE_BOOK);
-
-  // Function that accepts the book's mongo _id value as param and deletes the book from the database
   const handleDeleteBook = async (bookId) => {
     const token = Auth.loggedIn() ? Auth.getToken() : null;
-
     if (!token) {
       return false;
     }
-
     try {
-      // Calls the removeBook function to use the REMOVE_BOOK mutation on the book with the corresponding bookId
-      await removeBook({ variables: { bookId } });
+      const response = await removeBook({
+        variables: { bookId: bookId },
+      });
 
-      // Upon success, remove book's id from localStorage
+      if (!response) {
+        throw new Error("something went wrong!");
+      }
+      setMyBooks([...myBooks.filter(book => book.bookId != bookId)])
       removeBookId(bookId);
-
-      // Forces a refetch of the GET_ME query so that the the updated userData and component is displayed without reloading of the page
-      refetch();
     } catch (err) {
-      console.error(err);
+      console.error(error);
     }
   };
 
@@ -59,6 +52,10 @@ const SavedBooks = () => {
   if (loading) {
     return <h2>LOADING...</h2>;
   }
+  // console.log(userData);
+  // sync localStorage with what was returned from the userData query
+  const savedBookIds = myBooks.map((book) => book.bookId);
+  saveBookIds(savedBookIds);
 
   return (
     <>
@@ -69,14 +66,15 @@ const SavedBooks = () => {
       </Jumbotron>
       <Container>
         <h2>
-          {userData.savedBooks.length
-            ? `Viewing ${userData.savedBooks.length} saved ${
-                userData.savedBooks.length === 1 ? "book" : "books"
+          {myBooks.length
+            ? `Viewing ${myBooks.length} saved ${
+                myBooks.length === 1 ? "book" : "books"
               }:`
             : "You have no saved books!"}
         </h2>
         <CardColumns>
-          {userData.savedBooks.map((book) => {
+          {console.log(myBooks)}
+          {myBooks.map((book) => {
             return (
               <Card key={book.bookId} border="dark">
                 {book.image ? (
