@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import {
   Jumbotron,
   Container,
@@ -6,36 +6,52 @@ import {
   Card,
   Button,
 } from "react-bootstrap";
-import { useQuery, useMutation } from "@apollo/client";
-
 import Auth from "../utils/auth";
-import { removeBookId, saveBookIds } from "../utils/localStorage";
-import { GET_ME } from "../utils/queries";
+import { removeBookId } from "../utils/localStorage";
+
+// Imports useMutation and useQuery from @apollo-client so that the imported REMOVE_BOOK mutation and the GET_ME query can be called
+import { useMutation, useQuery } from "@apollo/client";
 import { REMOVE_BOOK } from "../utils/mutations";
+import { GET_ME } from "../utils/queries";
 
 const SavedBooks = () => {
-  const { loading, data } = useQuery(GET_ME);
-  const userData = data?.me || [];
+  // Brings in the GET_ME userQuery hook with the data, the loading boolean, the refetch ability, and an error code if needed
+  const { loading, error, data, refetch } = useQuery(GET_ME);
 
-  const [removeBook, { error }] = useMutation(REMOVE_BOOK);
+  // useEffect hook to refetch the user's saved book data every time the data changes
+  useEffect(() => {
+    refetch();
+  }, [refetch, data]);
 
+  // Sets the userData variable to the data retrieved from the GET_ME query
+  const userData = data?.me;
+
+  if (error) {
+    console.log(error.message);
+  }
+
+  // Applies the REMOVE_BOOK mutation to the function removeBook to be called
+  const [removeBook] = useMutation(REMOVE_BOOK);
+
+  // Function that accepts the book's mongo _id value as param and deletes the book from the database
   const handleDeleteBook = async (bookId) => {
     const token = Auth.loggedIn() ? Auth.getToken() : null;
 
     if (!token) {
       return false;
     }
-    try {
-      const response = await removeBook({
-        variables: { bookId },
-      });
 
-      if (!response) {
-        throw new Error("something went wrong!");
-      }
+    try {
+      // Calls the removeBook function to use the REMOVE_BOOK mutation on the book with the corresponding bookId
+      await removeBook({ variables: { bookId } });
+
+      // Upon success, remove book's id from localStorage
       removeBookId(bookId);
+
+      // Forces a refetch of the GET_ME query so that the the updated userData and component is displayed without reloading of the page
+      refetch();
     } catch (err) {
-      console.error(error);
+      console.error(err);
     }
   };
 
@@ -43,10 +59,6 @@ const SavedBooks = () => {
   if (loading) {
     return <h2>LOADING...</h2>;
   }
-
-  // sync localStorage with what was returned from the userData query
-  const savedBookIds = userData.savedBooks.map((book) => book.bookId);
-  saveBookIds(savedBookIds);
 
   return (
     <>
